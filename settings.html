@@ -1,0 +1,80 @@
+<div class="reviewer-settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b data-i18n="{{title}}">{{title}}</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+
+            <div class="reviewer_settings_content">
+                <div>
+                    <div class="flex-container justifyspacebetween alignitemscenter" style="margin: auto; width: fit-content;">
+                        <h4 class="textAlignCenter">Configuration Profiles</h4>
+                        <input id="import_file" type="file" hidden="" accept=".json">
+                    </div>
+                </div>
+
+                <div class="flex-container justifyspacebetween alignitemscenter">
+                    <select id="profile"            class="flex1 text_pole"                                 title="The currently selected profile"></select>
+                    <button id="save_profile"       class="menu_button fa-solid fa-save interactable"       title="Save current profile" tabindex="0"></button>
+                    <button id="rename_profile"     class="menu_button fa-solid fa-pencil interactable"     title="Rename current profile" tabindex="0"></button>
+                    <button id="new_profile"        class="menu_button fa-solid fa-file-circle-plus interactable" title="Create new profile" tabindex="0"></button>
+                    <button id="restore_profile"    class="menu_button fa-solid fa-recycle interactable"    title="Restore current profile" tabindex="0"></button>
+                    <button id="delete_profile"     class="menu_button fa-solid fa-trash-can interactable"  title="Delete current profile" tabindex="0"></button>
+                </div>
+
+                <div class="flex-container justifyspacebetween alignitemscenter">
+                    <button id="character_profile" class="menu_button interactable" title="Auto-load profile for current character or group" tabindex="0"><i class="fa-solid fa-unlock" style="margin-right: 1em"></i>Character</button>
+                    <button id="chat_profile"      class="menu_button interactable" title="Auto-load profile for current chat"      tabindex="0"><i class="fa-solid fa-unlock" style="margin-right: 1em"></i>Chat</button>
+                    <label class="checkbox_label" title="Show a notification upon switching profiles">
+                        <input id="notify_on_profile_switch" type="checkbox" />
+                        <span>Notify on Switch</span>
+                    </label>
+                </div>
+
+                <hr>
+                <h4 class="textAlignCenter">Review Prompt <i class="fa-solid fa-info-circle" title="Customize the prompt used to review a given message + history"></i></h4>
+
+                <div class="flex-container justifyspacebetween alignitemscenter">
+                    <button id="edit_review_prompt_pre" class="menu_button flex1" title="Edit the review pre-prompt" >Edit Pre</button>
+                </div>
+                <div class="flex-container justifyspacebetween alignitemscenter">
+                    <button id="edit_review_prompt" class="menu_button flex1" title="Edit the review prompt" >Edit Post</button>
+                </div>
+
+                <hr>
+
+                <table>
+
+                    <tr title="The connection profile to use for summaries.">
+                        <td><span>Connection Profile</span></td>
+                        <td><select id="connection_profile" class="text_pole"></select></td>
+                    </tr>
+
+                </table>
+
+                <hr>
+
+                <label title="Remove instructions from prompt before review." class="checkbox_label">
+                    <input id="remove_instruction" type="checkbox" />
+                    <span>Do not include instructions</span>
+                </label>
+
+                <label title="Remove persona from prompt before review." class="checkbox_label">
+                    <input id="remove_user" type="checkbox" />
+                    <span>Do not include persona</span>
+                </label>
+
+                <label title="Remove character from prompt before review." class="checkbox_label">
+                    <input id="remove_character" type="checkbox" />
+                    <span>Do not include character</span>
+                </label>
+
+                <label title="Remove world info from prompt before review." class="checkbox_label">
+                    <input id="remove_world_info" type="checkbox" />
+                    <span>Do not include world info</span>
+                </label>
+            </div>
+        </div>
+    </div>
+</div>

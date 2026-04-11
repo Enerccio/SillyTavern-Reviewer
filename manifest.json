@@ -1,0 +1,12 @@
+{
+    "display_name": "Reviewer",
+    "loading_order": 1,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Enerccio",
+    "version": "0.2.0",
+    "homePage": "https://github.com/Enerccio/SillyTavern-Reviewer",
+    "auto_update": true
+}

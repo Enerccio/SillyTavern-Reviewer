@@ -1,0 +1,22 @@
+<div id="reviewPopupContainer" class="flex-container flexFlowColumn height100p">
+    <label for="reviewer_review">
+        Review
+    </label>
+    <div id="reviewSwipesLeft" class="reviewSwipe_left fa-solid fa-chevron-left interactable" tabindex="0" role="button"></div>
+    <div class="flex-container justifyspacebetween alignitemscenter">
+        <button id="reviewer_stopcontinue" class="menu_button flex1" title="Stops the generation of review" >Stop generating</button>
+    </div>
+    <div id="reviewChat" class="fade last_swipe last_mes">
+        <div class="mes">
+            <div class="mes_block">
+                <div id="reviewer_review" class="mes_text">
+                    Generating review, please wait.
+                </div>
+            </div>
+        </div>
+        <div class="flex-container reviewSwipeRightBlock flexFlowColumn flexNoGap">
+            <div id="reviewSwipesRight" class="reviewSwipe_right fa-solid fa-chevron-right interactable" tabindex="0" role="button"></div>
+            <div id="reviewSwipes" class="reviewSwipes-counter">0 / 0</div>
+        </div>
+    </div>
+</div>
