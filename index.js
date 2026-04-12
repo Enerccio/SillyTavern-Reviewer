@@ -15,7 +15,6 @@ import {
     bind_setting,
     delete_profile,
     get_settings,
-    initialize_group_member_buttons,
     initialize_settings,
     load_profile,
     new_profile,
@@ -24,7 +23,8 @@ import {
     render_settings_menu,
     save_profile,
     set_character_enabled_button_states,
-    show_settings_prompt, show_settings_prompt_pre,
+    show_settings_prompt,
+    show_settings_prompt_pre,
     toggle_character_profile,
     toggle_chat_profile,
 } from './settings.js';
