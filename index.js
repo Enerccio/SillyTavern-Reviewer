@@ -479,10 +479,6 @@ class ReviewWindow {
                 return;
         }
 
-        if (continue_generating) {
-            text = this.review.reviews[this.displaying].previous + text;
-        }
-        this.review.reviews[this.displaying].text = text;
         this.save();
         this.display_review();
         asyncGenerator = null;
