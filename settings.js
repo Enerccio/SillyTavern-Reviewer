@@ -4,13 +4,16 @@ import {
     check_objects_different, clean_string_for_html,
     error,
     escape_string, get_chat_metadata, get_current_character_identifier, global_references,
-    log, set_chat_metadata, toast,
+    log, set_chat_metadata, toast, toast_debounced,
     unescape_string,
 } from '/scripts/extensions/third-party/SillyTavern-Reviewer/utils.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '/scripts/extensions.js';
 import { saveSettingsDebounced } from '/script.js';
 import { Popup, POPUP_TYPE } from '/scripts/popup.js';
-import { get_connection_profiles } from '/scripts/extensions/third-party/SillyTavern-Reviewer/connections.js';
+import {
+    get_connection_profiles,
+    verify_connection_profile
+} from '/scripts/extensions/third-party/SillyTavern-Reviewer/connections.js';
 import { t } from '/scripts/i18n.js';
 import { openGroupId, selected_group } from '/scripts/group-chats.js';
 
@@ -307,7 +310,7 @@ export async function update_connection_profile_dropdown() {
 
     let profile_id = get_settings('connection_profile')
     if (!verify_connection_profile(profile_id)) {
-        toast_debounced(`Selected summary connection profile ID is invalid: ${ID}`, "warning")
+        toast_debounced(`Selected review connection profile ID is invalid: ${profile_id}`, "warning")
         profile_id = ""  // fall back to "same as current"
     }
     $connection_select.val(profile_id)
