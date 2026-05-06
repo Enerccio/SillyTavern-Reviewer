@@ -487,7 +487,7 @@ class ReviewWindow {
         let extra_tokens = 0;
         let cont_message = "";
         if (continue_generating) {
-            cont_message = as_message(this.review.reviews[this.displaying].previous);
+            cont_message = as_message_role(this.review.reviews[this.displaying].previous, "assistant");
             extra_tokens = count_tokens(this.review.reviews[this.displaying].previous);
         }
 
@@ -498,7 +498,7 @@ class ReviewWindow {
         } else {
             const pe = new PromptEngineeringTextComplete(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
             const prompt = pe.generate_review_prompt(messagePrompt, extra_tokens);
-            prompts.push(as_message_role(prompt, 'assistant'));
+            prompts.push(as_message(prompt));
         }
         if (continue_generating) {
             prompts.push(cont_message)
