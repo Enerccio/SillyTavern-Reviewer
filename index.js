@@ -1,6 +1,6 @@
 import { event_types, main_api, messageFormatting } from '../../../../script.js';
 import {
-    as_message,
+    as_message, as_message_role,
     count_tokens,
     get_data,
     get_message_div,
@@ -46,18 +46,25 @@ function is_chat_completion() {
 
 function get_review_prompt() {
     let review_prompt = get_settings("review_prompt");
-    if (is_chat_completion() && power_user.instruct.enabled) {
+    if ( power_user.instruct.enabled) {
         // noinspection JSCheckFunctionSignatures
         review_prompt = formatInstructModeChat("", review_prompt, false, true);
+    }
+
+    if (is_chat_completion()) {
+        return [{ role: "user", content: review_prompt }];
     }
     return review_prompt;
 }
 
 function get_review_prompt_pre() {
     let review_prompt = get_settings("review_prompt_pre");
-    if (is_chat_completion() && power_user.instruct.enabled) {
+    if (power_user.instruct.enabled) {
         // noinspection JSCheckFunctionSignatures
         review_prompt = formatInstructModeChat("", review_prompt, false, true);
+    }
+    if (is_chat_completion()) {
+        return [{ role: "system", content: review_prompt }];
     }
     return review_prompt;
 }
@@ -77,13 +84,49 @@ function initialize_request_metadata() {
     };
 }
 
-class PromptEngineering {
-
-    constructor(mId, text, metadata) {
+class PromptEngineeringChatComplete {
+    constructor(mId, rawPrompt, last_chat_message, metadata) {
         this.mId = mId;
         this.prompt = get_review_prompt();
         this.prompt_pre = get_review_prompt_pre();
-        this.original = text;
+        this.rawPrompt = rawPrompt; // Array of {role, content}
+        this.last_chat_message = last_chat_message;
+        this.metadata = metadata;
+    }
+
+    generate_review_prompt(promptData, extra_tokens) {
+        let trimmedRaw = [...this.rawPrompt];
+        let tokenCountPrompt = this.prompt.reduce((acc, m) => acc + count_tokens(m.content), 0);
+        tokenCountPrompt += this.prompt_pre.reduce((acc, m) => acc + count_tokens(m.content), 0);
+        const lastMessageTokenCount = count_tokens(this.last_chat_message.mes);
+
+        const max_size = this.metadata.max_context_size;
+
+        // Remove messages from the start of trimmedRaw until it fits the token limit
+        while (trimmedRaw.length > 0) {
+            let currentTokens = trimmedRaw.reduce((acc, m) => acc + count_tokens(m.content), 0);
+            if (currentTokens + tokenCountPrompt + extra_tokens + lastMessageTokenCount <= max_size) {
+                break;
+            }
+            trimmedRaw.shift();
+        }
+
+        return [
+            ...this.prompt_pre,
+            ...trimmedRaw,
+            as_message_role(this.last_chat_message.mes, this.last_chat_message.is_user ? "user" : "assistant"),
+            ...this.prompt
+        ];
+    }
+}
+
+class PromptEngineeringTextComplete {
+
+    constructor(mId, current_message, metadata) {
+        this.mId = mId;
+        this.prompt = get_review_prompt();
+        this.prompt_pre = get_review_prompt_pre();
+        this.original = current_message.mes;
         this.metadata = metadata;
         this.last_message = -1;
     }
@@ -336,9 +379,12 @@ class ReviewWindow {
     get_message_or_swipe() {
         const message = context.chat[this.mId];
         if (message.swipe_id) {
-            return message.swipes[message.swipe_id];
+            return {
+                mes: message.swipes[message.swipe_id],
+                is_user: message.is_user
+            };
         } else {
-            return message.mes;
+            return message;
         }
     }
 
@@ -444,14 +490,21 @@ class ReviewWindow {
             cont_message = as_message(this.review.reviews[this.displaying].previous);
             extra_tokens = count_tokens(this.review.reviews[this.displaying].previous);
         }
-        const prompts = [];
-        const pe = new PromptEngineering(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
-        const prompt = pe.generate_review_prompt(messagePrompt, extra_tokens);
-        prompts.push(as_message(prompt));
+
+        let prompts = [];
+        if (is_chat_completion()) {
+            const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, this.get_message_or_swipe(), this.metadata);
+            prompts = pe.generate_review_prompt(messagePrompt, extra_tokens);
+        } else {
+            const pe = new PromptEngineeringTextComplete(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
+            const prompt = pe.generate_review_prompt(messagePrompt, extra_tokens);
+            prompts.push(as_message(prompt));
+        }
         if (continue_generating) {
             prompts.push(cont_message)
         }
-        let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, profile.max_tokens, {stream: true, signal: abort.signal});
+        let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, this.metadata.max_context_size,
+            {stream: true, signal: abort.signal});
         asyncGenerator = asyncGeneratorFunction();
 
         let text = "";
