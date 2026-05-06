@@ -498,7 +498,7 @@ class ReviewWindow {
         } else {
             const pe = new PromptEngineeringTextComplete(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
             const prompt = pe.generate_review_prompt(messagePrompt, extra_tokens);
-            prompts.push(as_message(prompt));
+            prompts.push(as_message_role(prompt, 'assistant'));
         }
         if (continue_generating) {
             prompts.push(cont_message)
