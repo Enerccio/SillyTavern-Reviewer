@@ -503,7 +503,7 @@ class ReviewWindow {
         if (continue_generating) {
             prompts.push(cont_message)
         }
-        let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, this.metadata.max_context_size,
+        let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, this.metadata.num_predict,
             {stream: true, signal: abort.signal});
         asyncGenerator = asyncGeneratorFunction();
 
