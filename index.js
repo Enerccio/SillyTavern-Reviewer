@@ -46,7 +46,7 @@ function is_chat_completion() {
 
 function get_review_prompt() {
     let review_prompt = get_settings("review_prompt");
-    if ( power_user.instruct.enabled) {
+    if (!is_chat_completion() && power_user.instruct.enabled) {
         // noinspection JSCheckFunctionSignatures
         review_prompt = formatInstructModeChat("", review_prompt, false, true);
     }
@@ -59,7 +59,7 @@ function get_review_prompt() {
 
 function get_review_prompt_pre() {
     let review_prompt = get_settings("review_prompt_pre");
-    if (power_user.instruct.enabled) {
+    if (!is_chat_completion() && power_user.instruct.enabled) {
         // noinspection JSCheckFunctionSignatures
         review_prompt = formatInstructModeChat("", review_prompt, false, true);
     }
