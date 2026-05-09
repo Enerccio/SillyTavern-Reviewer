@@ -270,7 +270,7 @@ let abort = null;
 
 class ReviewWindow {
 
-    constructor(mId, messageBlock, sc, left, right, counter) {
+    constructor(mId, messageBlock, sc, left, right, counter, $sr, $srDiv) {
         this.mId = mId;
         this.review = null;
         this.reviewWithSwipes = null;
@@ -282,6 +282,8 @@ class ReviewWindow {
         this.displaying = 0;
         this.editing = false;
         this.needs_generating = false;
+        this.$sr = $sr;
+        this.$srDiv = $srDiv;
         this.metadata = initialize_request_metadata();
 
         this.sc.onclick = async event => {
@@ -295,6 +297,11 @@ class ReviewWindow {
                 return;
             this.set_to_edit();
             this.update_state();
+        });
+
+        this.$sr.hide();
+        this.$sr.on('click', () => {
+            this.$srDiv.toggle();
         });
     }
 
@@ -312,7 +319,10 @@ class ReviewWindow {
             this.review = {
                 reviews: [{
                     text: "",
-                    previous: ""
+                    previous: "",
+                    metadata: {
+                        reasoning: "",
+                    }
                 }],
                 current: 0
             };
@@ -336,7 +346,10 @@ class ReviewWindow {
                 this.review = {
                     reviews: [{
                         text: "",
-                        previous: ""
+                        previous: "",
+                        metadata: {
+                            reasoning: "",
+                        }
                     }],
                     current: 0
                 };
@@ -350,6 +363,8 @@ class ReviewWindow {
 
     set_to_edit() {
         this.editing = true;
+        this.$sr.hide();
+        this.$srDiv.hide();
 
         // noinspection JSUnresolvedReference
         let $textarea = $(`<textarea class="" rows="1"></textarea>`);
@@ -367,6 +382,9 @@ class ReviewWindow {
             $textarea.remove();  // remove the textarea
             this.messageBlock.hidden = false;  // show the memory div
             this.editing = false;
+            if (this.review.reviews[this.displaying]?.metadata?.reasoning) {
+                this.$sr.show();
+            }
 
             this.save();
             this.display_review();
@@ -393,6 +411,12 @@ class ReviewWindow {
         text = messageFormatting(text, "", false, false, -1);
         this.messageBlock.innerHTML = `${text}`;
         this.update_state();
+
+        let reasoning = this.get_review().reviews[this.displaying]?.metadata?.reasoning;
+        if (reasoning) {
+            this.$sr.show();
+            this.$srDiv[0].innerHTML = messageFormatting(reasoning, "", false, false, -1);
+        }
     }
 
     scroll_to_bottom() {
@@ -409,6 +433,9 @@ class ReviewWindow {
             if (!is_chat_completion()) {
                 this.sc.title = "Continues generating more";
                 this.sc.innerHTML = "Continue generating";
+            } else {
+                this.sc.title = "Continue is disabled in Chat Complete";
+                this.sc.innerHTML = "Disabled";
             }
             if (this.get_review().reviews.length > 1 && this.displaying > 0) {
                 this.left.onclick = () => {
@@ -424,7 +451,10 @@ class ReviewWindow {
                     // generate new
                     this.get_review().reviews.push({
                         text: "",
-                        previous: ""
+                        previous: "",
+                        metadata: {
+                            reasoning: "",
+                        }
                     });
                     this.get_review().current += 1;
                     this.displaying += 1;
@@ -522,12 +552,14 @@ class ReviewWindow {
                 }
 
                 const returnFromGenerator = r.value;
+                const reasoning = returnFromGenerator.state?.reasoning;
                 text = returnFromGenerator.text;
                 if (continue_generating) {
                     text = this.review.reviews[this.displaying].previous + text;
                 }
 
                 this.review.reviews[this.displaying].text = text;
+                this.review.reviews[this.displaying].metadata.reasoning = reasoning;
                 this.save();
                 this.display_review();
             }
@@ -561,10 +593,12 @@ async function show_review(mId) {
                 const next =  $(document).find('#reviewSwipesRight')[0];
                 // noinspection JSUnresolvedReference
                 const counter =  $(document).find('#reviewSwipes')[0];
+                const $sr =  $(document).find('#reviewer_lightbulb_btn');
+                const $srDiv =  $(document).find('#reviewer_review_popover');
 
                 asyncGenerator = null;
                 abort = null;
-                let w = new ReviewWindow(mId, messageBlock, stopContinueButton, prev, next, counter);
+                let w = new ReviewWindow(mId, messageBlock, stopContinueButton, prev, next, counter, $sr, $srDiv);
                 const r = w.get_review();
                 if (!w.needs_generating) {
                     w.displaying = r.current;

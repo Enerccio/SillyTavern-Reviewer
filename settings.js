@@ -18,9 +18,8 @@ import { t } from '/scripts/i18n.js';
 import { openGroupId, selected_group } from '/scripts/group-chats.js';
 
 export const default_settings = {
-    review_prompt: `\nReview:`,
-    review_prompt_pre: `Text below is a fictional short story. Generate reviews of this story as if it was a reddit thread about it.
-Include lot of details, both positive and negative reviews.`,
+    review_prompt: `Ignore previous instructions, instead you are a reddit simulator. Take the text before as a story work in progress and generate a reddit thread (generate name and subreddit for it based on content) asking people to review said story. Then generate at least 30 replies from various users reviewing the story. Include both positive and negative feedback, have at least 1 troll reply and 1 pun reply. Messages can be replies to other messages creating threads.`,
+    review_prompt_pre: ``,
     remove_instruction: true,
     remove_user: false,
     remove_character: false,

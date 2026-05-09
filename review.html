@@ -9,14 +9,22 @@
     <div id="reviewChat" class="fade last_swipe last_mes">
         <div class="mes">
             <div class="mes_block">
+                <button id="reviewer_lightbulb_btn" class="reviewer_lightbulb_btn" title="Lightbulb">
+                    <i class="fa-solid fa-lightbulb"></i>
+                </button>
+
+                <div id="reviewer_review_popover" class="reviewer_review_popover" style="display: none;">
+                    <!-- Popover content goes here -->
+                </div>
+
                 <div id="reviewer_review" class="mes_text">
                     Generating review, please wait.
                 </div>
             </div>
         </div>
-        <div class="flex-container reviewSwipeRightBlock flexFlowColumn flexNoGap">
-            <div id="reviewSwipesRight" class="reviewSwipe_right fa-solid fa-chevron-right interactable" tabindex="0" role="button"></div>
-            <div id="reviewSwipes" class="reviewSwipes-counter">0 / 0</div>
-        </div>
+    </div>
+    <div class="flex-container reviewSwipeRightBlock flexFlowColumn flexNoGap">
+        <div id="reviewSwipesRight" class="reviewSwipe_right fa-solid fa-chevron-right interactable" tabindex="0" role="button"></div>
+        <div id="reviewSwipes" class="reviewSwipes-counter" style="z-index: 99999;">0 / 0</div>
     </div>
 </div>
