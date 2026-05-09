@@ -406,8 +406,10 @@ class ReviewWindow {
             this.left.onclick = undefined;
             this.right.onclick = undefined;
         } else {
-            this.sc.title = "Continues generating more";
-            this.sc.innerHTML = "Continue generating";
+            if (!is_chat_completion()) {
+                this.sc.title = "Continues generating more";
+                this.sc.innerHTML = "Continue generating";
+            }
             if (this.get_review().reviews.length > 1 && this.displaying > 0) {
                 this.left.onclick = () => {
                     if (this.editing)
@@ -461,6 +463,8 @@ class ReviewWindow {
             this.display_review()
             asyncGenerator = null;
         } else {
+            if (is_chat_completion())
+                return;
             await this.generate_review(this.mId, true);
         }
     }
