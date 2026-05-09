@@ -408,10 +408,21 @@ class ReviewWindow {
         let reasoning = this.get_review().reviews[this.displaying]?.metadata?.reasoning;
         const $details = $(this.messageBlock).closest('.mes_block').find('.mes_reasoning_details');
         const $reasoningContent = $details.find('.mes_reasoning');
+        const $reasoningHeader = $details.find('.mes_reasoning_header');
 
         if (reasoning) {
             $details.show();
             $reasoningContent.html(messageFormatting(reasoning, "", false, false, -1));
+
+            const reasoningTime = this.get_review().reviews[this.displaying]?.metadata?.reasoningTime;
+            const reasoningDone = this.get_review().reviews[this.displaying]?.metadata?.reasoningDone;
+            if (reasoningTime) {
+                const seconds = (reasoningTime / 1000).toFixed(1);
+                if (reasoningDone)
+                    $reasoningHeader.text(`Thought for ${seconds} seconds`);
+                else
+                    $reasoningHeader.text(`Thinking for ${seconds} seconds`);
+            }
         } else {
             $details.hide();
         }
@@ -540,6 +551,7 @@ class ReviewWindow {
         asyncGenerator = asyncGeneratorFunction();
 
         let text = "";
+        let reasoningTime = null;
         try {
             while (true) {
                 let r = await asyncGenerator.next();
@@ -551,9 +563,20 @@ class ReviewWindow {
 
                 const returnFromGenerator = r.value;
                 const reasoning = returnFromGenerator.state?.reasoning;
+
+                if (reasoning && reasoningTime === null) {
+                    reasoningTime = performance.now();
+                }
+
                 text = returnFromGenerator.text;
                 if (continue_generating) {
                     text = this.review.reviews[this.displaying].previous + text;
+                }
+
+                if (!text) {
+                    this.review.reviews[this.displaying].metadata.reasoningTime = performance.now() - reasoningTime;
+                } else {
+                    this.review.reviews[this.displaying].metadata.reasoningDone = true;
                 }
 
                 this.review.reviews[this.displaying].text = text;
