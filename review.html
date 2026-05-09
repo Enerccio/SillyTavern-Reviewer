@@ -9,13 +9,17 @@
     <div id="reviewChat" class="fade last_swipe last_mes">
         <div class="mes">
             <div class="mes_block">
-                <button id="reviewer_lightbulb_btn" class="reviewer_lightbulb_btn" title="Lightbulb">
-                    <i class="fa-solid fa-lightbulb"></i>
-                </button>
-
-                <div id="reviewer_review_popover" class="reviewer_review_popover" style="display: none;">
-                    <!-- Popover content goes here -->
-                </div>
+                <details class="mes_reasoning_details" style="display: block;">
+                    <summary class="mes_reasoning_summary flex-container">
+                        <div class="mes_reasoning_header_block flex-container">
+                            <div class="mes_reasoning_header flex-container">
+                                Reasoning
+                                <div class="mes_reasoning_arrow fa-solid fa-chevron-up"></div>
+                            </div>
+                        </div>
+                    </summary>
+                    <div class="mes_reasoning"></div>
+                </details>
 
                 <div id="reviewer_review" class="mes_text">
                     Generating review, please wait.

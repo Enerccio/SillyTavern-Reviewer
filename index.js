@@ -270,7 +270,7 @@ let abort = null;
 
 class ReviewWindow {
 
-    constructor(mId, messageBlock, sc, left, right, counter, $sr, $srDiv) {
+    constructor(mId, messageBlock, sc, left, right, counter) {
         this.mId = mId;
         this.review = null;
         this.reviewWithSwipes = null;
@@ -282,8 +282,6 @@ class ReviewWindow {
         this.displaying = 0;
         this.editing = false;
         this.needs_generating = false;
-        this.$sr = $sr;
-        this.$srDiv = $srDiv;
         this.metadata = initialize_request_metadata();
 
         this.sc.onclick = async event => {
@@ -297,11 +295,6 @@ class ReviewWindow {
                 return;
             this.set_to_edit();
             this.update_state();
-        });
-
-        this.$sr.hide();
-        this.$sr.on('click', () => {
-            this.$srDiv.toggle();
         });
     }
 
@@ -363,8 +356,8 @@ class ReviewWindow {
 
     set_to_edit() {
         this.editing = true;
-        this.$sr.hide();
-        this.$srDiv.hide();
+        const $details = $(this.messageBlock).closest('.mes_block').find('.mes_reasoning_details');
+        $details.hide();
 
         // noinspection JSUnresolvedReference
         let $textarea = $(`<textarea class="" rows="1"></textarea>`);
@@ -383,7 +376,7 @@ class ReviewWindow {
             this.messageBlock.hidden = false;  // show the memory div
             this.editing = false;
             if (this.review.reviews[this.displaying]?.metadata?.reasoning) {
-                this.$sr.show();
+                $details.show();
             }
 
             this.save();
@@ -413,9 +406,14 @@ class ReviewWindow {
         this.update_state();
 
         let reasoning = this.get_review().reviews[this.displaying]?.metadata?.reasoning;
+        const $details = $(this.messageBlock).closest('.mes_block').find('.mes_reasoning_details');
+        const $reasoningContent = $details.find('.mes_reasoning');
+
         if (reasoning) {
-            this.$sr.show();
-            this.$srDiv[0].innerHTML = messageFormatting(reasoning, "", false, false, -1);
+            $details.show();
+            $reasoningContent.html(messageFormatting(reasoning, "", false, false, -1));
+        } else {
+            $details.hide();
         }
     }
 
@@ -593,12 +591,10 @@ async function show_review(mId) {
                 const next =  $(document).find('#reviewSwipesRight')[0];
                 // noinspection JSUnresolvedReference
                 const counter =  $(document).find('#reviewSwipes')[0];
-                const $sr =  $(document).find('#reviewer_lightbulb_btn');
-                const $srDiv =  $(document).find('#reviewer_review_popover');
 
                 asyncGenerator = null;
                 abort = null;
-                let w = new ReviewWindow(mId, messageBlock, stopContinueButton, prev, next, counter, $sr, $srDiv);
+                let w = new ReviewWindow(mId, messageBlock, stopContinueButton, prev, next, counter);
                 const r = w.get_review();
                 if (!w.needs_generating) {
                     w.displaying = r.current;
