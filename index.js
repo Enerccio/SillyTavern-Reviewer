@@ -102,24 +102,28 @@ class PromptEngineeringChatComplete {
         const removeOnce = {}
         this.rawPrompt.forEach(m => {
             if (get_settings("remove_instruction") && !removeOnce["instruction"]) {
-                if (m.content === promptData.instruction)
+                if (m.content === promptData.instruction) {
                     removeOnce["instruction"] = true;
                     return;
+                }
             }
             if (get_settings("remove_user") && !removeOnce["user"]) {
-                if (m.content === promptData.userPersona)
+                if (m.content === promptData.userPersona) {
                     removeOnce["user"] = true;
                     return;
+                }
             }
             if (get_settings("remove_character") && !removeOnce["character"]) {
-                if (m.content === promptData.charDescription)
+                if (m.content === promptData.charDescription) {
                     removeOnce["character"] = true;
                     return;
+                }
             }
             if (get_settings("remove_world_info") && !removeOnce["world_info"]) {
-                if (m.content === promptData.worldInfoString)
+                if (m.content === promptData.worldInfoString) {
                     removeOnce["world_info"] = true;
                     return;
+                }
             }
             trimmedRaw.push(m)
         })
