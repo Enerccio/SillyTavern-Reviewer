@@ -95,7 +95,34 @@ class PromptEngineeringChatComplete {
     }
 
     generate_review_prompt(promptData, extra_tokens) {
-        let trimmedRaw = [...this.rawPrompt];
+        if (this.rawPrompt instanceof String) {
+            this.rawPrompt = [this.rawPrompt];
+        }
+        let trimmedRaw = [];
+        const removeOnce = {}
+        this.rawPrompt.forEach(m => {
+            if (get_settings("remove_instruction") && !removeOnce["instruction"]) {
+                if (m.content === promptData.instruction)
+                    removeOnce["instruction"] = true;
+                    return;
+            }
+            if (get_settings("remove_user") && !removeOnce["user"]) {
+                if (m.content === promptData.userPersona)
+                    removeOnce["user"] = true;
+                    return;
+            }
+            if (get_settings("remove_character") && !removeOnce["character"]) {
+                if (m.content === promptData.charDescription)
+                    removeOnce["character"] = true;
+                    return;
+            }
+            if (get_settings("remove_world_info") && !removeOnce["world_info"]) {
+                if (m.content === promptData.worldInfoString)
+                    removeOnce["world_info"] = true;
+                    return;
+            }
+            trimmedRaw.push(m)
+        })
         let tokenCountPrompt = this.prompt.reduce((acc, m) => acc + count_tokens(m.content), 0);
         tokenCountPrompt += this.prompt_pre.reduce((acc, m) => acc + count_tokens(m.content), 0);
         const lastMessageTokenCount = count_tokens(this.last_chat_message.mes);
