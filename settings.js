@@ -24,6 +24,8 @@ export const default_settings = {
     remove_user: false,
     remove_character: false,
     remove_world_info: false,
+    qvink_memory: false,
+    qvink_memory_locator: "",
 };
 export const global_settings = {
     profiles: {},  // dict of profiles by name

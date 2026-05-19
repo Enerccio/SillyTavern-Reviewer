@@ -142,7 +142,22 @@ class PromptEngineeringChatComplete {
             trimmedRaw.shift();
         }
 
+        const tools = [];
+
+        if (get_settings("qvink_memory_lookup")) {
+            const logFormat = get_settings("qvink_memory_locator");
+            tools.push(as_message_role(`You have access to the \`reviewer_return_memory\` tool, which retrieves full unedited chat histories.
+
+The context contains memory blocks formatted as:
+${logFormat}
+(Where 'X' represents a specific log index number, or a list of numbers like).
+
+OPTIONAL USE: By default, use the provided summary log to generate your response. However, if you need  specific phrasing, or deep details that the summary does not explicitly cover, you MAY choose to pause generation and call \`fetch_historical_logs\` with the relevant integer ID(s) to gain full clarity. Only call it if the summary is insufficient.
+`, "system"));
+        }
+
         return [
+            ...tools,
             ...this.prompt_pre,
             ...trimmedRaw,
             as_message_role(this.last_chat_message.mes, this.last_chat_message.is_user ? "user" : "assistant"),
@@ -290,7 +305,23 @@ class PromptEngineeringTextComplete {
             }
         }
 
-        return this.prompt_pre + this.pretext + this.text + this.prompt;
+
+
+        let tools = "";
+
+        if (get_settings("qvink_memory_lookup")) {
+            const logFormat = get_settings("qvink_memory_locator");
+            tools = `You have access to the \`reviewer_return_memory\` tool, which retrieves full unedited chat histories.
+
+The context contains memory blocks formatted as:
+${logFormat}
+(Where 'X' represents a specific log index number, or a list of numbers like).
+
+OPTIONAL USE: By default, use the provided summary log to generate your response. However, if you need  specific phrasing, or deep details that the summary does not explicitly cover, you MAY choose to pause generation and call \`fetch_historical_logs\` with the relevant integer ID(s) to gain full clarity. Only call it if the summary is insufficient.
+`;
+        }
+
+        return tools + this.prompt_pre + this.pretext + this.text + this.prompt;
     }
 
 }
@@ -577,47 +608,91 @@ class ReviewWindow {
         if (continue_generating) {
             prompts.push(cont_message)
         }
-        let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, this.metadata.num_predict,
-            {stream: true, signal: abort.signal});
-        asyncGenerator = asyncGeneratorFunction();
-
-        let text = "";
-        let reasoningTime = null;
         try {
-            while (true) {
-                let r = await asyncGenerator.next();
-                if (r.done) {
-                    asyncGenerator = null;
-                    abort = null;
-                    break;
-                }
-
-                const returnFromGenerator = r.value;
-                const reasoning = returnFromGenerator.state?.reasoning;
-
-                if (reasoning && reasoningTime === null) {
-                    reasoningTime = performance.now();
-                }
-
-                text = returnFromGenerator.text;
-                if (continue_generating) {
-                    text = this.review.reviews[this.displaying].previous + text;
-                }
-
-                if (!text) {
-                    this.review.reviews[this.displaying].metadata.reasoningTime = performance.now() - reasoningTime;
-                } else {
-                    this.review.reviews[this.displaying].metadata.reasoningDone = true;
-                }
-
-                this.review.reviews[this.displaying].text = text;
-                this.review.reviews[this.displaying].metadata.reasoning = reasoning;
-                this.save();
-                this.display_review();
+            if (get_settings("qvink_memory_lookup")) {
+                context.registerFunctionTool({
+                    name: 'reviewer_return_memory',
+                    displayName: 'Return Memory',
+                    description: 'Returns the memory for the given message',
+                    shouldRegister: () => true,
+                    stealth: true,
+                    properties: {
+                        $schema: 'http://json-schema.org/draft-04/schema#',
+                        type: 'object',
+                        properties: {
+                            message_id: {
+                                type: 'array',
+                                items: {
+                                    type: 'integer'
+                                },
+                                description: 'The message ids of the memories to return',
+                            },
+                        },
+                        required: ['message_ids'],
+                        additionalProperties: false,
+                    },
+                    action: async ({ memoryIds }) => {
+                        const memories = [];
+                        if (memoryIds instanceof Array) {
+                            for (const memoryId of memoryIds) {
+                                const message = context.chat[memoryId];
+                                const memoryData = message?.extra?.["qvink_memory"]?.[key];
+                                if (memoryData) {
+                                    memories.push(memoryData);
+                                }
+                            }
+                        }
+                        return JSON.stringify(memories);
+                    },
+                });
             }
-        } catch (aborted) {
-            if (aborted.cause && (aborted.cause !== "dialogClosed" && aborted.cause !== "userStopped"))
-                return;
+
+            let asyncGeneratorFunction = await context.ConnectionManagerRequestService.sendRequest(profile, prompts, this.metadata.num_predict,
+                {stream: true, signal: abort.signal});
+            asyncGenerator = asyncGeneratorFunction();
+
+            let text = "";
+            let reasoningTime = null;
+            try {
+                while (true) {
+                    let r = await asyncGenerator.next();
+                    if (r.done) {
+                        asyncGenerator = null;
+                        abort = null;
+                        break;
+                    }
+
+                    const returnFromGenerator = r.value;
+                    const reasoning = returnFromGenerator.state?.reasoning;
+
+                    if (reasoning && reasoningTime === null) {
+                        reasoningTime = performance.now();
+                    }
+
+                    text = returnFromGenerator.text;
+                    if (continue_generating) {
+                        text = this.review.reviews[this.displaying].previous + text;
+                    }
+
+                    if (!text) {
+                        this.review.reviews[this.displaying].metadata.reasoningTime = performance.now() - reasoningTime;
+                    } else {
+                        this.review.reviews[this.displaying].metadata.reasoningDone = true;
+                    }
+
+                    this.review.reviews[this.displaying].text = text;
+                    this.review.reviews[this.displaying].metadata.reasoning = reasoning;
+                    this.save();
+                    this.display_review();
+                }
+            } catch (aborted) {
+                if (aborted.cause && (aborted.cause !== "dialogClosed" && aborted.cause !== "userStopped"))
+                    return;
+            }
+        } finally {
+            if (get_settings("qvink_memory_lookup")) {
+                context.unregisterFunctionTool('reviewer_return_memory');
+            }
         }
 
         this.save();
@@ -767,6 +842,8 @@ jQuery(async function () {
     bind_setting('#remove_user', 'remove_user', 'boolean');
     bind_setting('#remove_character', 'remove_character', 'boolean');
     bind_setting('#remove_world_info', 'remove_world_info', 'boolean');
+    bind_setting('#include_qvink_memory_lookup', 'qvink_memory_lookup', 'boolean');
+    bind_setting('#qvink_memory_locator', 'qvink_memory_locator', 'string');
 
     initialize_settings();
     initialize_message_buttons();
