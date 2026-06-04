@@ -94,12 +94,17 @@ class PromptEngineeringChatComplete {
         this.metadata = metadata;
     }
 
-    generate_review_prompt(promptData, extra_tokens) {
-        if (this.rawPrompt instanceof String) {
+    // 1. Turned method into an async function
+    async generate_review_prompt(promptData, extra_tokens) {
+        // Safe check for both primitive strings and String objects
+        if (typeof this.rawPrompt === 'string' || this.rawPrompt instanceof String) {
             this.rawPrompt = [this.rawPrompt];
         }
+
         let trimmedRaw = [];
-        const removeOnce = {}
+        const removeOnce = {};
+
+        // Keep your original filtering logic intact first
         this.rawPrompt.forEach(m => {
             if (get_settings("remove_instruction") && !removeOnce["instruction"]) {
                 if (m.content === promptData.instruction) {
@@ -125,28 +130,57 @@ class PromptEngineeringChatComplete {
                     return;
                 }
             }
-            trimmedRaw.push(m)
-        })
-        let tokenCountPrompt = this.prompt.reduce((acc, m) => acc + count_tokens(m.content), 0);
-        tokenCountPrompt += this.prompt_pre.reduce((acc, m) => acc + count_tokens(m.content), 0);
-        const lastMessageTokenCount = count_tokens(this.last_chat_message.mes);
+            trimmedRaw.push(m);
+        });
+
+        // 2. Inline helper to process text and safely extract the tuple value
+        const processText = async (text) => {
+            if (!window.enerccio_compat?.textProcessor) return text;
+
+            const result = await window.enerccio_compat.textProcessor(text, { imprint: false });
+            return Array.isArray(result) ? result[0] : text;
+        };
+
+        // 3. Process all strings concurrently using Promise.all to optimize performance
+        const processedPromptPre = await Promise.all(this.prompt_pre.map(async m => ({
+            ...m,
+            content: await processText(m.content)
+        })));
+
+        const processedPrompt = await Promise.all(this.prompt.map(async m => ({
+            ...m,
+            content: await processText(m.content)
+        })));
+
+        const processedTrimmedRaw = await Promise.all(trimmedRaw.map(async m => ({
+            ...m,
+            content: await processText(m.content)
+        })));
+
+        const processedLastMesText = await processText(this.last_chat_message.mes);
+
+        // 4. Calculate tokens using the newly processed content
+        let tokenCountPrompt = processedPrompt.reduce((acc, m) => acc + count_tokens(m.content), 0);
+        tokenCountPrompt += processedPromptPre.reduce((acc, m) => acc + count_tokens(m.content), 0);
+        const lastMessageTokenCount = count_tokens(processedLastMesText);
 
         const max_size = this.metadata.max_context_size;
 
-        // Remove messages from the start of trimmedRaw until it fits the token limit
-        while (trimmedRaw.length > 0) {
-            let currentTokens = trimmedRaw.reduce((acc, m) => acc + count_tokens(m.content), 0);
+        // Remove messages from the start of processedTrimmedRaw until it fits the token limit
+        while (processedTrimmedRaw.length > 0) {
+            let currentTokens = processedTrimmedRaw.reduce((acc, m) => acc + count_tokens(m.content), 0);
             if (currentTokens + tokenCountPrompt + extra_tokens + lastMessageTokenCount <= max_size) {
                 break;
             }
-            trimmedRaw.shift();
+            processedTrimmedRaw.shift();
         }
 
+        // 5. Assemble and return the fully processed prompt array
         return [
-            ...this.prompt_pre,
-            ...trimmedRaw,
-            as_message_role(this.last_chat_message.mes, this.last_chat_message.is_user ? "user" : "assistant"),
-            ...this.prompt
+            ...processedPromptPre,
+            ...processedTrimmedRaw,
+            as_message_role(processedLastMesText, this.last_chat_message.is_user ? "user" : "assistant"),
+            ...processedPrompt
         ];
     }
 }
@@ -256,7 +290,7 @@ class PromptEngineeringTextComplete {
         this.text = this.text.substring(ix);
     }
 
-    generate_review_prompt(promptData, extra_tokens) {
+    async generate_review_prompt(promptData, extra_tokens) {
         if (get_settings("remove_instruction")) {
             this.original = this.original.replace(promptData.instruction, "")
         }
@@ -290,7 +324,8 @@ class PromptEngineeringTextComplete {
             }
         }
 
-        return this.prompt_pre + this.pretext + this.text + this.prompt;
+        const textData =  this.prompt_pre + this.pretext + this.text + this.prompt;
+        return await window.enerccio_compat?.textProcessor(textData) || textData;
     }
 
 }
@@ -568,10 +603,10 @@ class ReviewWindow {
         let prompts = [];
         if (is_chat_completion()) {
             const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, this.get_message_or_swipe(), this.metadata);
-            prompts = pe.generate_review_prompt(messagePrompt, extra_tokens);
+            prompts = await pe.generate_review_prompt(messagePrompt, extra_tokens);
         } else {
             const pe = new PromptEngineeringTextComplete(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
-            const prompt = pe.generate_review_prompt(messagePrompt, extra_tokens);
+            const prompt = await pe.generate_review_prompt(messagePrompt, extra_tokens);
             prompts.push(as_message(prompt));
         }
         if (continue_generating) {
