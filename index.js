@@ -1,6 +1,7 @@
-import { event_types, main_api, messageFormatting } from '../../../../script.js';
+import {event_types, getCharacterCardFields, main_api, messageFormatting} from '../../../../script.js';
 import {
-    as_message, as_message_role,
+    as_message,
+    as_message_role,
     count_tokens,
     get_data,
     get_message_div,
@@ -28,17 +29,19 @@ import {
     toggle_character_profile,
     toggle_chat_profile,
 } from './settings.js';
-import { power_user } from '../../../power-user.js';
-import { formatInstructModeChat } from '../../../instruct-mode.js';
-import { t } from '../../../i18n.js';
-import { get_connection_profile } from './connections.js';
-import { getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
-import { EXTENSION_PATH, MODULE_NAME } from './conf.js';
-import { Popup, POPUP_TYPE } from '../../../popup.js';
+import {power_user} from '../../../power-user.js';
+import {formatInstructModeChat} from '../../../instruct-mode.js';
+import {t} from '../../../i18n.js';
+import {get_connection_profile} from './connections.js';
+import {getContext, renderExtensionTemplateAsync} from '../../../extensions.js';
+import {EXTENSION_PATH, MODULE_NAME} from './conf.js';
+import {Popup, POPUP_TYPE} from '../../../popup.js';
+import {getWorldInfoPrompt} from "/scripts/world-info.js";
 
 const context = SillyTavern.getContext();
 const show_button_class = `${MODULE_NAME}_show_button`
 const delete_button_class = `${MODULE_NAME}_delete_button`
+const advanced_button_class = `${MODULE_NAME}_advanced_button`
 
 function is_chat_completion() {
     return main_api === 'openai';
@@ -85,17 +88,235 @@ function initialize_request_metadata() {
 }
 
 class PromptEngineeringChatComplete {
-    constructor(mId, rawPrompt, last_chat_message, metadata) {
+    constructor(mId, rawPrompt, last_chat_message, metadata, advancedInfo) {
         this.mId = mId;
         this.prompt = get_review_prompt();
         this.prompt_pre = get_review_prompt_pre();
         this.rawPrompt = rawPrompt; // Array of {role, content}
         this.last_chat_message = last_chat_message;
         this.metadata = metadata;
+        this.advancedInfo = advancedInfo;
+    }
+
+    async generate_advanced_prompt(extra_tokens) {
+        let totalSize = 0;
+        let queries = [];
+        const context = SillyTavern.getContext();
+        if (this.advancedInfo.prompt) {
+            this.prompt = [ as_message_role(this.advancedInfo.prompt, "system") ];
+        }
+
+        let {
+            description,
+            personality,
+            persona,
+            scenario,
+            mesExamples,
+            system,
+            jailbreak,
+            charDepthQuery,
+            creatorNotes,
+        } = getCharacterCardFields();
+
+        if (jailbreak) {
+            queries.push({
+                content: jailbreak,
+                role: "system",
+            })
+        }
+
+        if (this.prompt_pre) {
+            queries = [...queries, ...this.prompt_pre];
+        }
+
+        if (this.advancedInfo.scenario) {
+            if (system)
+                queries.push({
+                    content: scenario,
+                    role: "system",
+                });
+            if (scenario)
+                queries.push({
+                    content: scenario,
+                    role: "system",
+                });
+        }
+
+        if (this.advancedInfo.persona) {
+            if (persona)
+                queries.push({
+                    content: persona,
+                    role: "system",
+                });
+        }
+
+        if (this.advancedInfo.characters) {
+            if (description)
+                queries.push({
+                    content: description,
+                    role: "system",
+                });
+            if (personality)
+                queries.push({
+                    content: personality,
+                    role: "system",
+                });
+            if (mesExamples)
+                queries.push({
+                    content: mesExamples,
+                    role: "system",
+                });
+        }
+
+        totalSize = count_tokens(queries) + count_tokens(this.prompt);
+        let testSize = totalSize;
+        const chat = [...context.chat, this.last_chat_message];
+
+        if (this.advancedInfo.worldinfo) {
+            const testMessages = [];
+            let tBuf = "";
+
+            for (let i=chat.length-1; i>=0; i--) {
+                const m = chat[i];
+                if (m && m.mes) {
+                    const text = m.mes;
+                    testMessages.push({
+                        content: text,
+                        role: "system"
+                    });
+                    testSize = count_tokens(testMessages) + totalSize;
+                    if (testSize > this.advancedInfo.tokenLimit) {
+                        break;
+                    }
+
+                    tBuf += "\n\n" + m.mes;
+                }
+            }
+
+            // we have buffer, now we test worldinfo and get preliminary size
+            const globalScanData = {
+                personaDescription: persona,
+                characterDescription: description,
+                characterPersonality: personality,
+                characterDepthQuery: charDepthQuery,
+                scenario: scenario,
+                creatorNotes: creatorNotes,
+                trigger: this.advancedInfo.wiTrigger,
+            };
+            const this_max_context = this.advancedInfo.tokenLimit;
+            const {
+                worldInfoString,
+                worldInfoBefore,
+                worldInfoAfter,
+                worldInfoExamples,
+                worldInfoDepth,
+                outletEntries
+            } = await getWorldInfoPrompt(tBuf ? [ tBuf ] : [ ], this_max_context, true, globalScanData);
+
+            const worldInfoTest = [];
+            if (worldInfoBefore) {
+                worldInfoTest.push({
+                    content: worldInfoBefore,
+                    role: "system"
+                });
+            }
+            if (worldInfoAfter) {
+                worldInfoTest.push({
+                    content: worldInfoAfter,
+                    role: "system"
+                });
+            }
+
+            testSize = totalSize + count_tokens(worldInfoTest);
+
+            const messages = [];
+            let mBuf = "";
+            for (let i=chat.length-1; i>=0; i--) {
+                const m = chat[i];
+                if (m && m.mes) {
+                    const text = m.mes;
+                    messages.push({
+                        content: text,
+                        role: "system"
+                    });
+                    testSize = count_tokens(messages) + totalSize + count_tokens(worldInfoTest);
+                    if (testSize > this.advancedInfo.tokenLimit) {
+                        break;
+                    }
+
+                    mBuf = m.mes + "\n\n" + mBuf;
+                }
+            }
+
+            // generate final worldinfo
+            const globalScanDataR = {
+                personaDescription: persona,
+                characterDescription: description,
+                characterPersonality: personality,
+                characterDepthQuery: charDepthQuery,
+                scenario: scenario,
+                creatorNotes: creatorNotes,
+                trigger: this.advancedInfo.wiTrigger,
+            };
+            let this_max_contextR = this.advancedInfo.tokenLimit;
+            const wi = await getWorldInfoPrompt(mBuf ? [ mBuf ] : [ ], this_max_contextR, true, globalScanDataR);
+
+            if (wi.worldInfoBefore) {
+                queries.push({
+                    content: wi.worldInfoBefore,
+                    role: "system"
+                });
+            }
+            if (wi.worldInfoAfter) {
+                queries.push({
+                    content: wi.worldInfoAfter,
+                    role: "system"
+                });
+            }
+
+            queries.push({
+                content: mBuf,
+                role: "assistant",
+            });
+        } else {
+            // ignore test messages they are not needed
+            const messages = [];
+            let mBuf = "";
+            for (let i=chat.length-1; i>=0; i--) {
+                const m = chat[i];
+                if (m && m.mes) {
+                    const text = m.mes;
+                    messages.push({
+                        content: text,
+                        role: "system"
+                    });
+                    testSize = count_tokens(messages) + totalSize;
+                    if (testSize > this.advancedInfo.tokenLimit) {
+                        break;
+                    }
+
+                    mBuf = m.mes + "\n\n" + mBuf;
+                }
+            }
+            queries.push({
+                content: mBuf,
+                role: "assistant",
+            });
+        }
+
+        if (this.prompt) {
+            queries = [...queries, ...this.prompt];
+        }
+
+        return queries;
     }
 
     // 1. Turned method into an async function
     async generate_review_prompt(promptData, extra_tokens) {
+        if (this.advancedInfo && !this.advancedInfo.usePromptInfo) {
+            return await this.generate_advanced_prompt(extra_tokens);
+        }
+
         // Safe check for both primitive strings and String objects
         if (typeof this.rawPrompt === 'string' || this.rawPrompt instanceof String) {
             this.rawPrompt = [this.rawPrompt];
@@ -531,6 +752,7 @@ class ReviewWindow {
                             reasoning: "",
                         }
                     });
+                    this.advancedInfo = this.get_review().reviews[this.displaying].metadata.advancedInfo;
                     this.get_review().current += 1;
                     this.displaying += 1;
                     this.save();
@@ -583,8 +805,12 @@ class ReviewWindow {
             throw "AbortSet";
         }
 
+        if (this.advancedInfo) {
+            this.review.reviews[this.displaying].metadata.advancedInfo = this.advancedInfo;
+        }
+
         abort = new AbortController();
-        this.display_review()
+        this.display_review();
 
         const profile = get_connection_profile();
         const messagePrompt = get_message_prompts(mId);
@@ -602,7 +828,7 @@ class ReviewWindow {
 
         let prompts = [];
         if (is_chat_completion()) {
-            const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, this.get_message_or_swipe(), this.metadata);
+            const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, this.get_message_or_swipe(), this.metadata, this.advancedInfo);
             prompts = await pe.generate_review_prompt(messagePrompt, extra_tokens);
         } else {
             const pe = new PromptEngineeringTextComplete(mId, messagePrompt.finalPrompt + this.get_message_or_swipe(), this.metadata);
@@ -661,7 +887,31 @@ class ReviewWindow {
     }
 }
 
-async function show_review(mId) {
+async function calculate_advanced_tokens(advancedInfo, mId) {
+    if (advancedInfo.usePromptInfo)
+        return "---";
+
+    const metadata = initialize_request_metadata();
+    const messagePrompt = get_message_prompts(mId);
+
+    function get_message_or_swipe() {
+        const message = SillyTavern.getContext().chat[mId];
+        if (message.swipe_id) {
+            return {
+                mes: message.swipes[message.swipe_id],
+                is_user: message.is_user
+            };
+        } else {
+            return message;
+        }
+    }
+
+    const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, get_message_or_swipe(), metadata, advancedInfo);
+    const prompts = await pe.generate_review_prompt(messagePrompt, null);
+    return count_tokens(prompts);
+}
+
+async function show_review(mId, advancedInfo = null) {
 
     // noinspection JSUnresolvedReference
     const template = $(await renderExtensionTemplateAsync(EXTENSION_PATH, 'review'));
@@ -684,6 +934,7 @@ async function show_review(mId) {
                 asyncGenerator = null;
                 abort = null;
                 let w = new ReviewWindow(mId, messageBlock, stopContinueButton, prev, next, counter);
+                w.advancedInfo = advancedInfo;
                 const r = w.get_review();
                 if (!w.needs_generating) {
                     w.displaying = r.current;
@@ -699,6 +950,100 @@ async function show_review(mId) {
                 update_message_visuals(mId);
             } });
     await popup.show();
+}
+
+async function show_advanced_modal(mId) {
+    const template = $(await renderExtensionTemplateAsync(EXTENSION_PATH, 'advanced'));
+
+    let existingAdvancedInfo = null;
+    const reviewWithSwipes = get_data(context.chat[mId], "review");
+    if (reviewWithSwipes) {
+        let swipe = context.chat[mId].swipe_id || 0;
+        const review = reviewWithSwipes[swipe];
+        if (review && review.reviews && review.reviews[review.current]) {
+            existingAdvancedInfo = review.reviews[review.current].metadata?.advancedInfo;
+        }
+    }
+
+    const advancedInfo = Object.assign({
+        prompt: get_settings("review_prompt") || "",
+        usePromptInfo: true,
+        persona: false,
+        characters: false,
+        worldinfo: false,
+        scenario: false,
+        tokenLimit: initialize_request_metadata().max_context_size,
+        wiTrigger: 'review'
+    }, existingAdvancedInfo || {});
+
+    // Initialize values in elements
+    template.find('#enerccio_reviewer_prompt_area').val(advancedInfo.prompt);
+    template.find('#enerccio_reviewer_use_prompt_info').prop('checked', advancedInfo.usePromptInfo);
+    template.find('#enerccio_reviewer_persona').prop('checked', advancedInfo.persona);
+    template.find('#enerccio_reviewer_characters').prop('checked', advancedInfo.characters);
+    template.find('#enerccio_reviewer_worldinfo').prop('checked', advancedInfo.worldinfo);
+    template.find('#enerccio_reviewer_scenario').prop('checked', advancedInfo.scenario);
+    template.find('#enerccio_reviewer_token_limit').val(advancedInfo.tokenLimit);
+    template.find('#enerccio_reviewer_wi_trigger').val(advancedInfo.wiTrigger);
+
+    const tokenLabel = template.find('#enerccio_reviewer_token_count_label');
+
+    const updateAllAndTokens = async () => {
+        // Collect current state into the pass-through dict
+        advancedInfo.prompt = template.find('#enerccio_reviewer_prompt_area').val();
+        advancedInfo.usePromptInfo = template.find('#enerccio_reviewer_use_prompt_info').is(':checked');
+        advancedInfo.persona = template.find('#enerccio_reviewer_persona').is(':checked');
+        advancedInfo.characters = template.find('#enerccio_reviewer_characters').is(':checked');
+        advancedInfo.worldinfo = template.find('#enerccio_reviewer_worldinfo').is(':checked');
+        advancedInfo.scenario = template.find('#enerccio_reviewer_scenario').is(':checked');
+        advancedInfo.tokenLimit = Number(template.find('#enerccio_reviewer_token_limit').val());
+        advancedInfo.wiTrigger = template.find('#enerccio_reviewer_wi_trigger').val();
+
+        // Disabling behavior for Use prompt info
+        const disabled = advancedInfo.usePromptInfo;
+        template.find('#enerccio_reviewer_persona').prop('disabled', disabled);
+        template.find('#enerccio_reviewer_characters').prop('disabled', disabled);
+        template.find('#enerccio_reviewer_worldinfo').prop('disabled', disabled);
+        template.find('#enerccio_reviewer_scenario').prop('disabled', disabled);
+        template.find('#enerccio_reviewer_token_limit').prop('disabled', disabled);
+        template.find('#enerccio_reviewer_wi_trigger').prop('disabled', disabled);
+
+        // Call stub to calculate token count
+        const count = await calculate_advanced_tokens(advancedInfo, mId);
+        tokenLabel.text(`Token Count: ${count}`);
+    };
+
+    // --- DEBOUNCE LOGIC ---
+    let typingTimer;
+    const doneTypingInterval = 1000;
+
+    // 1. Bind the debounced update listener to the textarea
+    template.find('#enerccio_reviewer_prompt_area').on('input', () => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(updateAllAndTokens, doneTypingInterval);
+    });
+
+    // 2. Bind the immediate update listener to checkboxes, number inputs, and selects
+    template.find('input, select').on('input change', () => {
+        // Optional: clear the textarea timer if a checkbox is clicked to prevent overlap
+        clearTimeout(typingTimer);
+        updateAllAndTokens();
+    });
+
+    // Initial state run
+    await updateAllAndTokens();
+
+    const popup = new Popup(template, POPUP_TYPE.CONFIRM, '', {
+        wide: true,
+        large: false,
+        okButton: 'Generate',
+        cancelButton: 'Close'
+    });
+
+    const result = await popup.show();
+    if (result) {
+        await show_review(mId, advancedInfo);
+    }
 }
 
 function delete_review(mId) {
@@ -747,11 +1092,20 @@ function update_all_message_visuals() {
     }
 }
 
+function update_advanced_button_visibility() {
+    if (is_chat_completion()) {
+        $(`.${advanced_button_class}`).show();
+    } else {
+        $(`.${advanced_button_class}`).hide();
+    }
+}
+
 function initialize_message_buttons() {
     let html = `
-<div title="${t`Show/Generate review`}" class="mes_button ${show_button_class} fa-solid fa-star" tabindex="0"></div>
-<div title="${t`Delete review`}" class="mes_button ${delete_button_class} fa-solid fa-star-half" tabindex="0"></div>
-`;
+        <div title="${t`Show/Generate review`}" class="mes_button ${show_button_class} fa-solid fa-star" tabindex="0"></div>
+        <div title="${t`Advanced review options`}" class="mes_button ${advanced_button_class} fa-solid fa-cog" tabindex="0"></div>
+        <div title="${t`Delete review`}" class="mes_button ${delete_button_class} fa-solid fa-star-half" tabindex="0"></div>
+        `;
 
     // noinspection JSUnresolvedReference
     let $buttons = $("#message_template .mes_buttons .extraMesButtons");
@@ -777,7 +1131,20 @@ function initialize_message_buttons() {
         // noinspection JSUnresolvedReference
         let message_id = Number(mesId);  // get the message ID from the row's "message_id" attribute
         delete_review(message_id);
-    })
+    });
+    // noinspection JSUnresolvedReference
+    $(document).on("click", `.${advanced_button_class}`, async function () {
+        if (!is_chat_completion()) {
+            return;
+        }
+        // noinspection JSUnresolvedReference
+        const mesEl = $(this).closest('.mes');
+        // noinspection JSUnresolvedReference
+        const mesId = mesEl.attr('mesid');
+        // noinspection JSUnresolvedReference
+        let message_id = Number(mesId);
+        await show_advanced_modal(message_id);
+    });
 }
 
 // noinspection JSUnresolvedReference
@@ -805,10 +1172,12 @@ jQuery(async function () {
 
     initialize_settings();
     initialize_message_buttons();
+    update_advanced_button_visibility();
 
     context.eventSource.on(event_types.CHAT_CHANGED, (event) => {
         auto_load_profile();
         update_all_message_visuals();
+        update_advanced_button_visibility();
     });
 
     context.eventSource.on('groupSelected', set_character_enabled_button_states);
@@ -816,7 +1185,10 @@ jQuery(async function () {
 
     let update_events = [event_types.PRESET_CHANGED, event_types.CONNECTION_PROFILE_LOADED, event_types.CONNECTION_PROFILE_UPDATED]
     for (let event of update_events) {
-        context.eventSource.on(event, refresh_settings)
+        context.eventSource.on(event, () => {
+            refresh_settings();
+            update_advanced_button_visibility();
+        });
     }
 
     update_all_message_visuals();

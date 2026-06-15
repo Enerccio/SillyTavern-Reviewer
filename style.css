@@ -104,3 +104,13 @@
 .review_span_class {
     color: green;
 }
+
+.enerccio_reviewer_row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#enerccio_reviewer_advanced_container {
+    padding: 10px;
+}

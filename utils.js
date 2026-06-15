@@ -161,6 +161,11 @@ export function get_data(message, key) {
 export function count_tokens(text, padding = 0) {
     // count the number of tokens in a text
     let ctx = getContext();
+    if (text instanceof Array) {
+        let b = "";
+        text.forEach(m => b += m.content);
+        return ctx.getTokenCount(b, padding);
+    }
     return ctx.getTokenCount(text, padding);
 }
 

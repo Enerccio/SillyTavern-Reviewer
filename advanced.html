@@ -1,0 +1,54 @@
+<div id="enerccio_reviewer_advanced_container" class="flex-container flexFlowColumn height100p">
+    <h3>Advanced Review Options</h3>
+
+    <div class="flex-container alignitemscenter margin-bottom-10">
+        <span id="enerccio_reviewer_token_count_label">Token Count: 0</span>
+    </div>
+
+    <div class="flex-container flexFlowColumn margin-bottom-10">
+        <label for="enerccio_reviewer_prompt_area">Prompt</label>
+        <textarea id="enerccio_reviewer_prompt_area" class="text_pole" style="min-height: 100px;"></textarea>
+    </div>
+
+    <div class="margin-bottom-10">
+        <label class="checkbox_label">
+            <input id="enerccio_reviewer_use_prompt_info" type="checkbox" checked />
+            <span>Use prompt info</span>
+        </label>
+    </div>
+
+    <!-- Checkbox row with Persona, Characters, Worldinfo, Scenario -->
+    <div class="enerccio_reviewer_row margin-bottom-10 flex-container flexFlowRow alignitemscenter" id="enerccio_reviewer_options_row_1">
+        <label class="checkbox_label" style="margin-right: 15px;">
+            <input id="enerccio_reviewer_persona" type="checkbox" />
+            <span>Persona</span>
+        </label>
+        <label class="checkbox_label" style="margin-right: 15px;">
+            <input id="enerccio_reviewer_characters" type="checkbox" />
+            <span>Characters</span>
+        </label>
+        <label class="checkbox_label" style="margin-right: 15px;">
+            <input id="enerccio_reviewer_worldinfo" type="checkbox" />
+            <span>Worldinfo</span>
+        </label>
+        <label class="checkbox_label">
+            <input id="enerccio_reviewer_scenario" type="checkbox" />
+            <span>Scenario</span>
+        </label>
+    </div>
+
+    <!-- Token Limit integer field -->
+    <div class="enerccio_reviewer_row margin-bottom-10 flex-container flexFlowRow alignitemscenter" id="enerccio_reviewer_options_row_2">
+        <span style="margin-right: 10px;">Token Limit:</span>
+        <input id="enerccio_reviewer_token_limit" type="number" class="text_pole" style="width: 100px;" value="1000" />
+    </div>
+
+    <!-- Worldinfo trigger combobox -->
+    <div class="enerccio_reviewer_row margin-bottom-10 flex-container flexFlowRow alignitemscenter" id="enerccio_reviewer_options_row_3">
+        <span style="margin-right: 10px;">Worldinfo Trigger:</span>
+        <select id="enerccio_reviewer_wi_trigger" class="text_pole" style="width: auto;">
+            <option value="review">Review</option>
+            <option value="normal">Normal</option>
+        </select>
+    </div>
+</div>
