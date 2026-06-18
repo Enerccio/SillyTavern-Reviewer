@@ -169,6 +169,18 @@ export function count_tokens(text, padding = 0) {
     return ctx.getTokenCount(text, padding);
 }
 
+
+export async function count_tokens_async(text, padding = 0) {
+    // count the number of tokens in a text
+    let ctx = getContext();
+    if (text instanceof Array) {
+        let b = "";
+        text.forEach(m => b += m.content);
+        return await ctx.getTokenCountAsync(b, padding);
+    }
+    return await ctx.getTokenCountAsync(text, padding);
+}
+
 export function get_message_prompts(index) {
     // Return an object containing prompt information for a given message index
     // We can do this by iterating through the itemizedPrompts array and trying to match the message ID
