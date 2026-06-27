@@ -30,7 +30,7 @@
     margin: 0 auto;
     left: 0;
     right: 0;
-    z-index: 30;
+    z-index: 5;
     min-height: 100px;
     min-width: 100px;
     width: var(--sheldWidth);
@@ -50,7 +50,7 @@
     -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength));
     text-shadow: 0px 0px calc(var(--shadowWidth) * 1px) var(--SmartThemeShadowColor);
     flex-direction: column;
-    z-index: 30;
+    z-index: 5;
     flex-grow: 1;
     text-align: left;
 }
