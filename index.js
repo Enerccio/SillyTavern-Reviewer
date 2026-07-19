@@ -2,7 +2,7 @@ import {event_types, getCharacterCardFields, main_api, messageFormatting} from '
 import {
     as_message,
     as_message_role,
-    count_tokens,
+    count_tokens, count_tokens_async,
     get_data,
     get_message_div,
     get_message_prompts,
@@ -168,7 +168,7 @@ class PromptEngineeringChatComplete {
                 });
         }
 
-        totalSize = count_tokens(queries) + count_tokens(this.prompt);
+        totalSize = await count_tokens_async(queries) + await count_tokens_async(this.prompt);
         let testSize = totalSize;
         const chat = [...context.chat, this.last_chat_message];
 
@@ -184,7 +184,7 @@ class PromptEngineeringChatComplete {
                         content: text,
                         role: "system"
                     });
-                    testSize = count_tokens(testMessages) + totalSize;
+                    testSize = await count_tokens_async(testMessages) + totalSize;
                     if (testSize > this.advancedInfo.tokenLimit) {
                         break;
                     }
@@ -227,11 +227,11 @@ class PromptEngineeringChatComplete {
                 });
             }
 
-            testSize = totalSize + count_tokens(worldInfoTest);
+            testSize = totalSize + await count_tokens_async(worldInfoTest);
 
             const messages = [];
             let mBuf = "";
-            for (let i=chat.length-1; i>=0; i--) {
+            for (let i=this.mId; i>=0; i--) {
                 const m = chat[i];
                 if (m && m.mes) {
                     const text = m.mes;
@@ -239,7 +239,7 @@ class PromptEngineeringChatComplete {
                         content: text,
                         role: "system"
                     });
-                    testSize = count_tokens(messages) + totalSize + count_tokens(worldInfoTest);
+                    testSize = await count_tokens_async(messages) + totalSize + await count_tokens_async(worldInfoTest);
                     if (testSize > this.advancedInfo.tokenLimit) {
                         break;
                     }
@@ -282,7 +282,7 @@ class PromptEngineeringChatComplete {
             // ignore test messages they are not needed
             const messages = [];
             let mBuf = "";
-            for (let i=chat.length-1; i>=0; i--) {
+            for (let i=this.mId; i>=0; i--) {
                 const m = chat[i];
                 if (m && m.mes) {
                     const text = m.mes;
@@ -290,7 +290,7 @@ class PromptEngineeringChatComplete {
                         content: text,
                         role: "system"
                     });
-                    testSize = count_tokens(messages) + totalSize;
+                    testSize = await count_tokens_async(messages) + totalSize;
                     if (testSize > this.advancedInfo.tokenLimit) {
                         break;
                     }
@@ -873,7 +873,6 @@ class ReviewWindow {
 
                 this.review.reviews[this.displaying].text = text;
                 this.review.reviews[this.displaying].metadata.reasoning = reasoning;
-                this.save();
                 this.display_review();
             }
         } catch (aborted) {
@@ -908,7 +907,7 @@ async function calculate_advanced_tokens(advancedInfo, mId) {
 
     const pe = new PromptEngineeringChatComplete(mId, messagePrompt.rawPrompt, get_message_or_swipe(), metadata, advancedInfo);
     const prompts = await pe.generate_review_prompt(messagePrompt, null);
-    return count_tokens(prompts);
+    return await count_tokens_async(prompts);
 }
 
 async function show_review(mId, advancedInfo = null) {
@@ -1013,7 +1012,6 @@ async function show_advanced_modal(mId) {
         tokenLabel.text(`Token Count: ${count}`);
     };
 
-    // --- DEBOUNCE LOGIC ---
     let typingTimer;
     const doneTypingInterval = 1000;
 
@@ -1023,11 +1021,16 @@ async function show_advanced_modal(mId) {
         typingTimer = setTimeout(updateAllAndTokens, doneTypingInterval);
     });
 
-    // 2. Bind the immediate update listener to checkboxes, number inputs, and selects
-    template.find('input, select').on('input change', () => {
-        // Optional: clear the textarea timer if a checkbox is clicked to prevent overlap
+    // 2. Bind immediate update to checkboxes and dropdown selects (change only)
+    template.find('input[type="checkbox"], select').on('change', async () => {
         clearTimeout(typingTimer);
-        updateAllAndTokens();
+        await updateAllAndTokens();
+    });
+
+    // 3. Bind debounced update to number inputs so typing doesn't stutter
+    template.find('input[type="number"]').on('input', () => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(updateAllAndTokens, doneTypingInterval);
     });
 
     // Initial state run
