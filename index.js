@@ -211,7 +211,7 @@ class PromptEngineeringChatComplete {
                 worldInfoExamples,
                 worldInfoDepth,
                 outletEntries
-            } = await getWorldInfoPrompt(tBuf ? [ tBuf ] : [ ], this_max_context, true, globalScanData);
+            } = await getWorldInfoPrompt(tBuf ? [ tBuf ] : [ ], this_max_context, false, globalScanData);
 
             const worldInfoTest = [];
             if (worldInfoBefore) {
@@ -259,7 +259,7 @@ class PromptEngineeringChatComplete {
                 trigger: this.advancedInfo.wiTrigger,
             };
             let this_max_contextR = this.advancedInfo.tokenLimit;
-            const wi = await getWorldInfoPrompt(mBuf ? [ mBuf ] : [ ], this_max_contextR, true, globalScanDataR);
+            const wi = await getWorldInfoPrompt(mBuf ? [ mBuf ] : [ ], this_max_contextR, false, globalScanDataR);
 
             if (wi.worldInfoBefore) {
                 queries.push({
