@@ -103,7 +103,7 @@ class PromptEngineeringChatComplete {
         let queries = [];
         const context = SillyTavern.getContext();
         if (this.advancedInfo.prompt) {
-            this.prompt = [ as_message_role(this.advancedInfo.prompt, "system") ];
+            this.prompt = [ as_message_role(this.advancedInfo.prompt, "user") ];
         }
 
         let {
